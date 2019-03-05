@@ -130,22 +130,6 @@ const char SINE[] PROGMEM =
 
 MCP4822 dac;
 
-// https://hifiduino.wordpress.com/2010/10/20/rotaryencoder-hw-sw-no-debounce/
-int8_t read_encoder(volatile uint8_t *port, uint8_t A, uint8_t B, uint8_t *previous) {
-    // The A and B values together form a index into states array
-    // int8_t states[] = {0, -1, 1, 0, 1, 0, 0, -1, -1, 0, 0, 1, 0, 1, -1, 0};
-    int8_t states[] = {0,-1,1,0,1,0,0,-1,-1,0,0,1,0,1,-1,0};
-    int8_t A_value = !!((*port) & (1 << A));
-    int8_t B_value = !!((*port) & (1 << B));
-
-    (*previous) <<= 2;
-    (*previous) |= (A_value << 1) | (B_value);
-    // if (((*previous)&0x0F) != 15)
-    //   printf("previous: %d\n", ((*previous)&0x0F));
-
-    return states[((*previous) & 0x0F)];
-}
-
 const static uint32_t SHIFT_AMOUNT = 16;
 const static uint32_t SHIFT_MASK = (((uint32_t)1 << SHIFT_AMOUNT) - 1);
 const static uint32_t MAX_FREQ = 200000;
