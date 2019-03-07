@@ -132,14 +132,13 @@ MCP4822 dac;
 
 const static uint32_t SHIFT_AMOUNT = 16;
 const static uint32_t SHIFT_MASK = (((uint32_t)1 << SHIFT_AMOUNT) - 1);
-const static uint32_t MAX_FREQ = 200000;
-const static uint32_t MIN_FREQ = 100;
-const static uint32_t SAMPLE_FREQ = 11363; // 1000mHz
+const static uint32_t MAX_FREQ = 13107200;      // ~200Hz bit shifted left by 16
+const static uint32_t MIN_FREQ = 2000;          // ~0.03Hz bit shifted left by 16
+const static uint32_t FREQ_POT_SCALE = 12800;   // ~0.2Hz
+const static uint32_t SAMPLE_FREQ = 11363;      // Sample write frequency to DAC
 
 volatile uint32_t phase_delta = 0;
-uint32_t freq_pot = 0;
-uint32_t i = 0;
-
+volatile uint32_t phase = 0;
 
 int main(void) {
     cli();
@@ -175,31 +174,37 @@ int main(void) {
     // Enable ADC
     ADCSRA |= (1 << ADEN);
 
+    // Setup reset pin as input
+    DDRD |= (1 << PD7);
+
     while(1) {
       // Start ADC conversion
       ADCSRA |= (1 << ADSC);
       while(ADCSRA & (1<<ADSC));
-      freq_pot = (ADCL | (ADCH << 8));
+      uint32_t freq_pot = (ADCL | (ADCH << 8));
 
-      uint32_t freq = (freq_pot << SHIFT_AMOUNT) / 128;
-      phase_delta = ((ARRAY_SIZE(SINE) * (freq / SAMPLE_FREQ)));
-      // printf("freq: %lu\n", freq);
-      // printf("phase_delta: %lu\n", phase_delta & SHIFT_MASK);
-      // printf("phase_add: %lu\n", phase_delta >> SHIFT_AMOUNT);
-      // Spi::write(0xff);
+      // Scale potentiometer values
+      uint32_t freq = freq_pot * FREQ_POT_SCALE;
+
+      // Calculate phase increment from SAMPLE_FREQ, array size and freq
+      phase_delta = ((ARRAY_SIZE(SINE) * (freq / (SAMPLE_FREQ << SHIFT_AMOUNT))));
+
+      // Reset phase if reset pin is high
+      if (PIND & PD7)
+        phase = 0;
+
       _delay_ms(2);
-      // dac.write(0x0f);
     }
 }
 
 
 
 ISR(TIMER2_COMPA_vect) {
-  i += phase_delta;
+  phase += phase_delta;
 
-  unsigned short index = i >> SHIFT_AMOUNT;
+  unsigned short index = phase >> SHIFT_AMOUNT;
   if (index >= ARRAY_SIZE(SINE)) {
-    i = (i & SHIFT_MASK);
+    phase = (phase & SHIFT_MASK);
   }
 
   // Write sample to DAC. Bitshift 4 to left because we have
