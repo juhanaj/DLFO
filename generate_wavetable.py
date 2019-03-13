@@ -1,11 +1,9 @@
 #!/usr/bin/python3
-# coding: future_fstrings 
 
 
 import argparse
 import math
 import numpy as np
-import matplotlib.pyplot as plt
 
 """
 A script for generating C array wavetables for the DLFO module.
@@ -112,7 +110,7 @@ def format_as_variable(values):
     given as parameter.
     """
     str_values = ", ".join(values)
-    return f"const char wavetable[] = {{ { str_values } }};\n"
+    return f"const unsigned int wavetable[] PROGMEM = {{ { str_values } }};\n"
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -128,8 +126,6 @@ if __name__ == '__main__':
         wavetable = wave_func(args.sampling_frequency, args.bits)
         hex_values = to_c_hex_array(wavetable)
         result = format_as_variable(hex_values)
-        plt.plot(wavetable)
-        plt.show()
     else:
         raise argparse.ArgumentError("Waveform must be sine")
 
@@ -138,4 +134,5 @@ if __name__ == '__main__':
         print(result)
     else:
         with open(args.output, "w") as f:
+            f.write(u"#include \"wavetable.h\"\n")
             f.write(result)
