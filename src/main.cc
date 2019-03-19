@@ -74,11 +74,13 @@ int main(void) {
     uint32_t freq_pot = (ADCL | (ADCH << 8));
 
     // Scale potentiometer values
+    if (freq_pot == 0)
+      freq_pot = 1;
+
     uint32_t freq = freq_pot * FREQ_POT_SCALE;
 
     // Calculate phase increment from SAMPLE_FREQ, array size and freq
-    phase_delta =
-        ((ARRAY_SIZE(wavetable) * (freq / (SAMPLE_FREQ << SHIFT_AMOUNT))));
+    phase_delta = ((ARRAY_SIZE(wavetable) * (freq / SAMPLE_FREQ)));
 
     // Reset phase if reset pin is high
     if (PIND & PD7)
@@ -97,13 +99,14 @@ ISR(TIMER2_COMPA_vect) {
 
   unsigned short index = phase >> SHIFT_AMOUNT;
   if (index >= ARRAY_SIZE(wavetable)) {
-    phase = (phase & SHIFT_MASK);
+    index = index - ARRAY_SIZE(wavetable);
+    phase = (uint32_t)index << SHIFT_AMOUNT;
   }
 
   // Write sample to DAC. Bitshift 4 to left because we have
   // a 8-bit sample but a 12-bit DAC.
   uint16_t sampleA = pgm_read_byte_near(wavetable + index);
-  dac.write(sampleA, MCP4822::DacOutA);
+  dac.write(sampleA << 4, MCP4822::DacOutA);
 
   // To output B write from same wavetable but with 1/4 phase difference
   unsigned short quarter_size = ARRAY_SIZE(wavetable) / 4;
@@ -113,5 +116,5 @@ ISR(TIMER2_COMPA_vect) {
     index = index - quarter_size;
 
   uint16_t sampleB = pgm_read_byte_near(wavetable + index);
-  dac.write(sampleB, MCP4822::DacOutB);
+  dac.write(sampleB << 4, MCP4822::DacOutB);
 }
